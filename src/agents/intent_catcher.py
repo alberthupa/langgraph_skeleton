@@ -48,89 +48,83 @@ class IntentCatchingTool(BaseTool):
         scope_of_data_for_retrieval = fetch_scope_of_data_for_retrieval()
         f"""Use the tool only if a user asks a question that is at least a bit related to this scope: {scope_of_data_for_retrieval}"""
         return {
-            # "users_question_about_applications": scope_of_knowledge_requested_by_user,
             "users_question_about_documentation": users_question_about_documentation,
             "users_question_about_database": users_question_about_numeric_data,
         }
 
 
-def intent_catcher(state: AgentState):
+def classify_intent(state: AgentState):
     """
-    This agent gets user input and:
-    - if there is reasonable scope of knowledge requested by user, it returns tools
-    - if there is no reasonable scope of knowledge requested by user, it returns message
-
-    In worflow it requires functions: collect_input_for_intent_catching and should_continue_intent_catching
-    and conditional edge
-
+    Tool node that classifies the user's intent based on their latest message.
+    
+    It determines whether the query relates to documentation, numeric data, both, or neither.
+    
+    Returns:
+        Updated state with classification results
     """
+    name_of_node = "intent_classifier"
 
-    name_of_agent = "intent_catcher"
+    # Extract the latest user message from the state
+    latest_messages = state["messages"]
+    
+    intent_classifier_system_prompt = fetch_system_prompt("intent_catcher")
 
-    intent_catcher_system_message = fetch_system_prompt(name_of_agent)
-
-    tool_identifyng_scope_of_knowledge = IntentCatchingTool()
-    tools = [tool_identifyng_scope_of_knowledge]
+    tool_identifying_scope = IntentCatchingTool()
+    tools = [tool_identifying_scope]
 
     llm_client = create_vanilla_llm_client()
     llm_client_with_tools = llm_client.bind_tools(tools)
 
-    dedicated_messages_for_agent = [
-        SystemMessage(intent_catcher_system_message)
-    ] + state["messages"]
+    # Only pass relevant context to the LLM
+    dedicated_messages = [
+        SystemMessage(content=intent_classifier_system_prompt)
+    ] + latest_messages
 
-    agent_response = llm_client_with_tools.invoke(dedicated_messages_for_agent)
+    classification_response = llm_client_with_tools.invoke(dedicated_messages)
 
     if state.get("dev_options", {}).get("debug"):
-        print(f"{name_of_agent}: ", agent_response)
+        print(f"{name_of_node}: ", classification_response)
 
     has_tool_calls = (
-        isinstance(agent_response.additional_kwargs, dict)
-        and "tool_calls" in agent_response.additional_kwargs
+        isinstance(classification_response.additional_kwargs, dict)
+        and "tool_calls" in classification_response.additional_kwargs
     )
 
     if has_tool_calls:
-        ai_tool_response = json.loads(
-            agent_response.additional_kwargs["tool_calls"][0]["function"]["arguments"]
+        tool_response = json.loads(
+            classification_response.additional_kwargs["tool_calls"][0]["function"]["arguments"]
         )
-        ai_tool_message_numeric = ai_tool_response.get("users_question_about_database")
-        ai_tool_message_numeric = (
-            None if ai_tool_message_numeric in (None, "") else ai_tool_message_numeric
-        )
-        ai_tool_message_textual = ai_tool_response.get(
-            "users_question_about_documentation"
-        )
-        ai_tool_message_textual = (
-            None if ai_tool_message_textual in (None, "") else ai_tool_message_textual
-        )
+        
+        # Extract and sanitize the intent classifications
+        numeric_intent = tool_response.get("users_question_about_database")
+        numeric_intent = None if numeric_intent in (None, "") else numeric_intent
+        
+        textual_intent = tool_response.get("users_question_about_documentation")
+        textual_intent = None if textual_intent in (None, "") else textual_intent
 
+        # Don't add a new message to the conversation, just return the classifications
         return {
             "messages": state["messages"],
-            "users_question_about_numeric_data": ai_tool_message_numeric,
-            "users_question_about_textual_data": ai_tool_message_textual,
+            "users_question_about_numeric_data": numeric_intent,
+            "users_question_about_textual_data": textual_intent,
         }
-
     else:
-        message = AIMessage(
-            agent_name=name_of_agent,
-            content=agent_response.content,
-        )
-
+        # If no intent could be classified, return false for both intent flags
         return {
-            "messages": state["messages"] + [message],
+            "messages": state["messages"],
             "users_question_about_numeric_data": False,
             "users_question_about_textual_data": False,
         }
 
 
-def intent_catcher_input(state: AgentState):
+def get_user_input(state: AgentState):
     """
-    this is a technical side function which just collects user input regarding users intent
+    Tool node that gets user input and adds it to the message history
     """
     user_input = input("User: ")
     input_message = HumanMessage(content=user_input)
     return {
         "messages": state["messages"] + [input_message],
-        "users_question_about_numeric_data": None,  # Reset the intent flag,
-        "users_question_about_textual_data": None,  # Reset the intent flag
+        "users_question_about_numeric_data": None,  # Reset the intent flags
+        "users_question_about_textual_data": None,  # Reset the intent flags
     }

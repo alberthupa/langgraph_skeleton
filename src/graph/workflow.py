@@ -1,6 +1,6 @@
 from langgraph.graph import START, StateGraph
 from src.graph.state import AgentState
-from src.agents.intent_catcher import intent_catcher, intent_catcher_input
+from src.agents.intent_catcher import classify_intent, get_user_input
 from src.agents.vanilla_agent_a import vanilla_agent_a
 from src.agents.vanilla_agent_b import vanilla_agent_b
 
@@ -33,27 +33,26 @@ def create_intent_catching_workflow():
         """
         return (
             "vanilla_agent_a"
-            # if state["data_intent_summarization"]
             if state.get("users_question_about_numeric_data")
             or state.get("users_question_about_textual_data")
-            else "intent_catcher_input"
+            else "user_input"
         )
 
     workflow = StateGraph(AgentState)
 
-    workflow.add_node("intent_catcher", intent_catcher)
-    workflow.add_node("intent_catcher_input", intent_catcher_input)
+    workflow.add_node("intent_classifier", classify_intent)
+    workflow.add_node("user_input", get_user_input)
     workflow.add_node("vanilla_agent_a", vanilla_agent_a)
 
-    workflow.add_edge(START, "intent_catcher")
+    workflow.add_edge(START, "intent_classifier")
     workflow.add_conditional_edges(
-        "intent_catcher",
+        "intent_classifier",
         should_continue_intent_catching,
         {
             "vanilla_agent_a": "vanilla_agent_a",
-            "intent_catcher_input": "intent_catcher_input",
+            "user_input": "user_input",
         },
     )
-    workflow.add_edge("intent_catcher_input", "intent_catcher")
+    workflow.add_edge("user_input", "intent_classifier")
 
     return workflow
