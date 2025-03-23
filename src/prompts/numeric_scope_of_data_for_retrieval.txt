@@ -1,0 +1,22 @@
+database with information about IT aplications: their names, statuses, owners, risk level with following table
+
+TABLE irisk_dashboard (
+	"Hex Id" TEXT, 
+	"Application Name" TEXT, 
+	"Application Status" TEXT, 
+	"Action Needed" TEXT, 
+	"Current Action Needed" FLOAT, 
+	"Action Owner" TEXT, 
+	"Application Owner" TEXT, 
+	"iRisk ID" TEXT, 
+	"Last Created Date" TEXT, 
+	"Compliance Area Completion %" FLOAT, 
+	"iRisk Completion Date" TEXT, 
+	"iRisk Compliant" FLOAT, 
+	"iRisk Total # of Issues" FLOAT, 
+	"Issue Id" TEXT, 
+	"iRisk Closure Additional information" FLOAT, 
+	"Application Description" TEXT, 
+	"Exception Comment" TEXT, 
+	"Assigned Architect" TEXT, 
+	"EA Form Ritm" TEXT, 
