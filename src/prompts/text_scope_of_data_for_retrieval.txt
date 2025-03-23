@@ -1,4 +1,1 @@
-text documentation about policies regarding these applications, storing such information as: procedures, guidelines, interpretation of diagrams.
-Texts about information from IT policies regarding applications.
-Texts about IT policies, procedures, and guidelines.
-Texts about steps to take in IT compliance and security for different applications.
+text documentation about ...
